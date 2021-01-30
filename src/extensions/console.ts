@@ -1,3 +1,5 @@
+import chalk from '../util/chalk';
+
 function getDatePrefix() {
 	const now = new Date();
 	const utc = new Date(
@@ -18,7 +20,7 @@ function getDatePrefix() {
 	const h = utc.getHours().toString().padStart(2, '0');
 	const min = utc.getMinutes().toString().padStart(2, '0');
 
-	return `[${d}/${mon}/${y}-${h}:${min}]`;
+	return chalk.yellow(`[${d}/${mon}/${y}-${h}:${min}]`);
 }
 
 const prevLog = console.log.bind(console);
