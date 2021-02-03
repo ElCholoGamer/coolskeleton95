@@ -5,7 +5,7 @@ import { join } from 'path';
 import startup from './util/startup';
 import db from './util/db';
 import Shop from './rpg/shop';
-import { readFullDir } from './util/utils';
+import { isModule, readFullDir } from './util/utils';
 
 const NODE_ENV = (process.env.NODE_ENV ||= process.argv.includes('-d')
 	? 'development'
@@ -21,7 +21,10 @@ const NODE_ENV = (process.env.NODE_ENV ||= process.argv.includes('-d')
 })().then(async function start() {
 	try {
 		// Extensions
-		const extensionFiles = await readFullDir(join(__dirname, 'extensions'));
+		const extensionFiles = (
+			await readFullDir(join(__dirname, 'extensions'))
+		).filter(isModule);
+
 		await Promise.all(extensionFiles.map(file => import(file)));
 
 		console.log(`Running in ${NODE_ENV} mode`);

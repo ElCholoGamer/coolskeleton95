@@ -1,7 +1,7 @@
 import { Collection } from 'discord.js';
 import { join } from 'path';
 import Item from '../structures/rpg/item';
-import { readFullDir } from '../util/utils';
+import { isModule, readFullDir } from '../util/utils';
 
 class Shop {
 	public readonly items: Collection<typeof Item.prototype.id, Item>;
@@ -11,9 +11,9 @@ class Shop {
 	}
 
 	public static async init() {
-		const itemFiles = (
-			await readFullDir(join(__dirname, 'items'))
-		).filter(file => /\.(ts|js)$/i.test(file));
+		const itemFiles = (await readFullDir(join(__dirname, 'items'))).filter(
+			isModule
+		);
 
 		const items: Item[] = [];
 

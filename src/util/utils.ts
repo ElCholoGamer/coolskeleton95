@@ -27,7 +27,10 @@ export const formatList = (list: any[]) => list.map(e => `\`${e}\``).join(', ');
 export const formatPermissions = (list: any[]) =>
 	list.map(perm => `\`${perm.toString().replace(/-/g, ' ')}\``);
 
-export const sleep = (time: number) =>
-	new Promise<number>(resolve => setTimeout(() => resolve(time), time));
+export function sleep(time: number) {
+	return new Promise<number>(resolve => setTimeout(() => resolve(time), time));
+}
 
 export const getMaxHP = (lv: number) => 16 + lv * 4;
+
+export const isModule = (file: string) => /\.(js|ts)$/i.test(file);

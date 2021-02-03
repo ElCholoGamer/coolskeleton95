@@ -3,13 +3,13 @@ import { Client } from 'discord.js';
 import { basename, join } from 'path';
 import CommandHandler from '../structures/command/command-handler';
 import { BaseHandler } from '../structures/event-handler';
-import { readFullDir, removeExtension } from './utils';
+import { isModule, readFullDir, removeExtension } from './utils';
 
 async function startup(client: Client) {
 	// Events
-	const eventFiles = (
-		await readFullDir(join(__dirname, '../events'))
-	).filter(file => /\.(ts|js)$/i.test(file));
+	const eventFiles = (await readFullDir(join(__dirname, '../events'))).filter(
+		isModule
+	);
 
 	await Promise.all(
 		eventFiles.map(async file => {

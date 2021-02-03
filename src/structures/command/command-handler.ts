@@ -1,6 +1,6 @@
 import { DMChannel, Client, Collection, Message } from 'discord.js';
 import { join } from 'path';
-import { formatPermissions, readFullDir } from '../../util/utils';
+import { formatPermissions, isModule, readFullDir } from '../../util/utils';
 import Command from '.';
 import { prefix, owner } from '../../config.json';
 import Category from '../category';
@@ -15,9 +15,7 @@ class CommandHandler {
 
 	public async init(): Promise<Collection<string, Command>> {
 		const folder = join(__dirname, '../../commands');
-		const files = (await readFullDir(folder)).filter(file =>
-			/\.(ts|js)$/i.test(file)
-		);
+		const files = (await readFullDir(folder)).filter(isModule);
 
 		// Import and register all commands
 		await Promise.all(
