@@ -15,8 +15,8 @@ const NODE_ENV = (process.env.NODE_ENV ||= process.argv.includes('-d')
 (async () => {
 	if (NODE_ENV === 'development') (await import('dotenv')).config();
 
-	if (existsSync('ascii.txt')) {
-		const ascii = (await readFile('ascii.txt')).toString();
+	if (existsSync('doggo.txt')) {
+		const ascii = (await readFile('doggo.txt')).toString();
 		console.log(ascii);
 	}
 })().then(async function start() {
