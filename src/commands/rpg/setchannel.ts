@@ -7,23 +7,21 @@ class SetChannel extends Command {
 		super('setchannel', 'SETS THE RPG CHANNEL ON THIS SERVER.', Category.RPG, {
 			usage: '[#channel]',
 			permissions: ['ADMINISTRATOR'],
-			disabled: true,
+			disabled: false,
 		});
 	}
 
 	public async execute({ message, channel, guild }: CommandEvent) {
-		const newChannel = message.mentions.channels.first();
+		const newChannel = message.mentions.channels.first() || channel;
 		if (!newChannel) {
-			return await channel.send('YOU NEED TO MENTION A SERVER CHANNEL!!!');
+			return await channel.send('YOU NEED TO MENTION A SERVER CHANNEL!');
 		}
 
 		const doc = await guild.getDocument();
 		doc.rpgChannel = newChannel.id;
 		await doc.save();
 
-		await channel.send(
-			`RPG CHANNEL SET TO <#${doc.rpgChannel}> SUCCESSFULLY!!!`
-		);
+		await channel.send(`RPG CHANNEL SET TO <#${doc.rpgChannel}>!`);
 	}
 }
 

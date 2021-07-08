@@ -26,11 +26,7 @@ class MessageHandler extends EventHandler('message') {
 		await Promise.all(
 			monsterFiles.map(async file => {
 				const MonsterConstructor = (await import(file)).default;
-				if (
-					typeof MonsterConstructor !== 'function' ||
-					!(new MonsterConstructor() instanceof Monster)
-				)
-					return;
+				if (typeof MonsterConstructor !== 'function') return;
 
 				this.monsters.push(MonsterConstructor);
 			})

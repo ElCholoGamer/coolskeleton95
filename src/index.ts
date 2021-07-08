@@ -1,4 +1,5 @@
 import { Client } from 'discord.js';
+import disbut from 'discord-buttons';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
@@ -33,6 +34,8 @@ const NODE_ENV = (process.env.NODE_ENV ||= process.argv.includes('-d')
 		console.log('MongoDB connected!');
 
 		const client = new Client({ restTimeOffset: 300 });
+		disbut(client);
+
 		client.shop = await Shop.init();
 		await startup(client);
 

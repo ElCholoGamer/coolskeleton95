@@ -1,10 +1,14 @@
-import { User, MessageEmbed, MessageReaction } from 'discord.js';
+import { User, MessageEmbed, Message } from 'discord.js';
 import { IUser } from '../../models/user';
-import { NUMBERS, NUMBER_EMOJIS } from '../../util/constants';
 import Battle from './battle';
 import { embedColor } from '../../config.json';
-import { getMaxHP, sleep } from '../../util/utils';
+import { getMaxHP, selectButton, sleep } from '../../util/utils';
 import DialogGenerator from '../../util/dialog-generator';
+import {
+	MessageActionRow,
+	MessageButton,
+	MessageComponent,
+} from 'discord-buttons';
 
 class Player {
 	public constructor(
@@ -26,7 +30,7 @@ class Player {
 		return damage;
 	}
 
-	public async act(battle: Battle): Promise<boolean> {
+	public async act(battle: Battle, message: Message): Promise<boolean> {
 		const { monster, channel } = battle;
 
 		const at = await monster.getAttack(true, battle);
@@ -42,37 +46,58 @@ class Player {
 				].join('\n'),
 		});
 
-		const optionEmojis = options.map((k, index) => NUMBER_EMOJIS[index + 1]);
-		const emojis = ['◀️', ...optionEmojis];
+		const components = [];
+		const chunkSize = 4;
+		const chunks = options.chunk(chunkSize);
 
-		const message = await channel.send(
-			new MessageEmbed()
-				.setColor(embedColor)
-				.setTitle('ACT Menu')
-				.setDescription(
-					options
-						.map((opt, index) => `:${NUMBERS[index + 1]}: - **${opt.name}**`)
-						.join('\n')
-				)
-		);
+		for (let chunk = 0; chunk < chunks.length; chunk++) {
+			const actionRow = new MessageActionRow();
 
-		for (const emoji of emojis) {
-			message.react(emoji).catch(() => null);
+			for (let i = 0; i < chunks[chunk].length; i++) {
+				const index = chunk * chunkSize + i;
+
+				actionRow.addComponent(
+					new MessageButton()
+						.setStyle('gray')
+						.setLabel(options[i].name)
+						.setID(index.toString())
+				);
+			}
+
+			components.push(actionRow);
 		}
 
-		const collected = await message.awaitReactions(
-			(m: MessageReaction, u: User) =>
-				emojis.includes(m.emoji.name) && u.id === this.user.id,
+		components.push(
+			new MessageActionRow().addComponent(
+				new MessageButton().setStyle('gray').setLabel('Back').setID('back')
+			)
+		);
+
+		const embed = new MessageEmbed().setColor(embedColor).setTitle('ACT Menu');
+		monster.attachImage(embed);
+
+		await message.edit({ embed, components: [...components] });
+
+		const collected = await message.awaitButtons(
+			(button: MessageComponent) => button.clicker.user.id === this.user.id,
 			{ max: 1, time: 1 * 60 * 60 * 1000 }
 		);
 
-		const first = collected.first();
-		if (!first || first.emoji.name === emojis[0]) return false;
+		const response = collected.first();
+		if (!response) return false;
 
-		const index = optionEmojis.indexOf(first.emoji.name);
-		if (index === -1) return false;
+		if (response.id === 'back') {
+			response.reply.defer(true);
+			return false;
+		}
 
+		const newButtons = selectButton(response.id, components);
+		await message.edit({ embed, components: newButtons });
+		response.reply.defer(true);
+
+		const index = Number(response.id);
 		const actResponse = await options[index].execute.call(monster, battle);
+
 		if (actResponse) {
 			await channel.send(this.dialogGenerator.embedDialog(actResponse));
 			await sleep(2000);
@@ -87,51 +112,61 @@ class Player {
 		return false;
 	}
 
-	public async mercy(battle: Battle): Promise<boolean> {
-		const {
-			channel,
-			monster: { spareable, fleeable },
-		} = battle;
+	public async mercy(battle: Battle, message: Message): Promise<boolean> {
+		const { monster } = battle;
 
-		const emojis = ['◀️', '', ''];
-		if (spareable) emojis[1] = '❌';
-		if (fleeable) emojis[2] = '🚪';
+		const embed = new MessageEmbed().setColor(embedColor).setTitle('MERCY');
+		monster.attachImage(embed);
 
-		const message = await channel.send(
-			new MessageEmbed()
-				.setColor(embedColor)
-				.setTitle('MERCY')
-				.setDescription(
-					[
-						emojis[1] ? `${emojis[1]} - **Spare**` : '~~Spare~~',
-						emojis[2] ? `${emojis[2]} - **Flee**` : '~~Flee~~',
-					].join('\n')
-				)
+		const buttons = new MessageActionRow()
+			.addComponent(
+				new MessageButton()
+					.setStyle('gray')
+					.setLabel('Spare')
+					.setID('spare')
+					.setDisabled(!monster.spareable)
+			)
+			.addComponent(
+				new MessageButton()
+					.setStyle('gray')
+					.setLabel('Flee')
+					.setID('flee')
+					.setDisabled(!monster.fleeable)
+			);
+
+		const backButton = new MessageActionRow().addComponent(
+			new MessageButton().setStyle('gray').setLabel('Back').setID('back')
 		);
 
-		for (const emoji of emojis) {
-			if (emoji) message.react(emoji).catch(() => null);
-		}
+		const components = [buttons, backButton];
+		await message.edit({ embed, components });
 
-		const collected = await message.awaitReactions(
-			(r: MessageReaction, u: User) =>
-				emojis.includes(r.emoji.name) && u.id === this.user.id,
+		const collected = await message.awaitButtons(
+			(button: MessageComponent) => button.clicker.user.id === this.user.id,
 			{ max: 1, time: 1 * 60 * 60 * 1000 }
 		);
 
-		const first = collected.first();
-		if (!first || first.emoji.name === emojis[0]) return false;
+		const response = collected.first();
+		if (!response) return false;
 
-		switch (first.emoji.name) {
-			case '❌':
-				// Spare
+		if (response.id === 'back') {
+			response.reply.defer(true);
+			return false;
+		}
+
+		const newButtons = selectButton(response.id, components);
+		await message.edit({ embed, components: newButtons });
+		response.reply.defer(true);
+
+		switch (response.id) {
+			case 'spare':
 				const gold = await battle.monster.getGold(true, battle);
 				await this.user.addGold(gold);
 				await battle.monster.onSpare(battle);
 
 				await battle.end(['YOU WON!', `You earned ${gold} gold.`].join('\n'));
 				break;
-			case '🚪':
+			case 'flee':
 				// Flee
 				await battle.end(
 					[

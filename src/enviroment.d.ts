@@ -50,4 +50,35 @@ declare module 'discord.js' {
 		addItem(id: number, amount?: number): Promise<IUser>;
 		removeItem(id: number, amount?: number): Promise<IUser>;
 	}
+
+	interface Message {
+		edit(
+			content:
+				| APIMessageContentResolvable
+				| (MessageOptions & { split?: false })
+				| MessageAdditions
+		): Promise<Message>;
+		edit(
+			options: MessageOptions & { split: true | SplitOptions }
+		): Promise<Message[]>;
+		edit(
+			options: MessageOptions | discord.APIMessage
+		): Promise<Message | Message[]>;
+		edit(
+			content: StringResolvable,
+			options: (MessageOptions & { split?: false }) | MessageAdditions
+		): Promise<Message>;
+		edit(
+			content: StringResolvable,
+			options: MessageOptions & { split: true | SplitOptions }
+		): Promise<Message[]>;
+		edit(
+			content: StringResolvable,
+			options: MessageOptions
+		): Promise<Message | Message[]>;
+		edit(
+			content: StringResolvable,
+			options: MessageButton | MessageActionRow | MessageMenu
+		): Promise<Message | Message[]>;
+	}
 }

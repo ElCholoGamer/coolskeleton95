@@ -1,15 +1,13 @@
-import {
-	User,
-	TextChannel,
-	MessageReaction,
-	MessageAttachment,
-	GuildEmoji,
-	ReactionEmoji,
-} from 'discord.js';
+import { User, TextChannel, Message } from 'discord.js';
 import Monster from './monster';
 import Player from './player';
-import { getMaxHP, sleep } from '../../util/utils';
+import { getMaxHP, selectButton, sleep } from '../../util/utils';
 import DialogGenerator from '../../util/dialog-generator';
+import {
+	MessageActionRow,
+	MessageButton,
+	MessageComponent,
+} from 'discord-buttons';
 
 interface BattleOptions {
 	user: User;
@@ -21,10 +19,10 @@ class Battle {
 	private _turn = 0;
 	private ended = false;
 	private readonly emojis = [
-		'<:fight:803358237969481788>',
-		'<:act:803358238040653895>',
-		'<:item:803358237977608242>',
-		'<:mercy:803358237956505610>',
+		'803358237969481788',
+		'803358238040653895',
+		'803358237977608242',
+		'803358237956505610',
 	];
 
 	private constructor(
@@ -38,10 +36,6 @@ class Battle {
 		const player = await Player.init(user);
 		const dialogGenerator = await DialogGenerator.init();
 		return new this(player, channel, monster, dialogGenerator);
-	}
-
-	private findEmojiIndex(emoji: GuildEmoji | ReactionEmoji) {
-		return this.emojis.findIndex(e => e === `<:${emoji.name}:${emoji.id}>`);
 	}
 
 	public get turn() {
@@ -60,11 +54,10 @@ class Battle {
 		this.showMainMenu();
 	}
 
-	private async showMainMenu(): Promise<void> {
+	private async showMainMenu(message?: Message): Promise<void> {
 		const dialog = await this.monster.getFlavorText(this);
 		const doc = await this.player.user.getDocument();
 
-		const [fight, act, item, mercy] = this.emojis;
 		const embed = this.dialogGenerator
 			.embedDialog(dialog)
 			.setTitle('Battle')
@@ -73,48 +66,54 @@ class Battle {
 					'**HP:**',
 					`You: \`${doc.hp} / ${getMaxHP(doc.lv)}\``,
 					`${this.monster.name}: \`${this.monster.hp} / ${this.monster.fullHP}\``,
-					'',
-					`${fight} - \`FIGHT\``,
-					`${act} - \`ACT\``,
-					`${item} - \`ITEM\``,
-					`${mercy} - \`MERCY\``,
 				].join('\n')
 			);
 
 		const { image } = this.monster;
-		if (image) {
-			const attachment = new MessageAttachment(
-				`./assets/img/monsters/${image}`,
-				image
-			);
-			embed.attachFiles([attachment]).setThumbnail(`attachment://${image}`);
-		}
+		if (image) this.monster.attachImage(embed);
 
-		// Send menu message
-		const message = await this.channel.send(embed);
-		for (const emoji of this.emojis) {
-			message.react(emoji).catch(() => null);
-		}
+		const options = ['FIGHT', 'ACT', 'ITEM', 'SPARE'];
 
-		const collected = await message.awaitReactions(
-			(r: MessageReaction, u: User) =>
-				this.findEmojiIndex(r.emoji) !== -1 && u.id === this.player.user.id,
-			{ max: 1, time: 1 * 60 * 60 * 1000 }
+		const actionRow = new MessageActionRow().addComponents(
+			...options.map((opt, index) =>
+				new MessageButton()
+					.setStyle('gray')
+					.setLabel(opt)
+					.setEmoji(this.emojis[index])
+					.setID(index.toString())
+			)
 		);
 
-		await message.delete().catch(() => null);
+		// Send menu message
+		if (!message) {
+			message = await this.channel.send({ embed, components: [actionRow] });
+		} else {
+			await message.edit({ embed, components: [actionRow] });
+		}
+
+		const collected = await message.awaitButtons(
+			(button: MessageComponent) =>
+				button.clicker.user.id === this.player.user.id,
+			{ max: 1, time: 1 * 60 * 60 * 1000 }
+		);
 
 		const response = collected.first();
 		if (!response) return this.end('Time limit exceeded');
 
 		// Choose action from reaction
 		let next = true;
-		const index = this.findEmojiIndex(response.emoji);
+		const index = Number(response.id);
+
+		if (index !== 0) response.reply.defer(true);
 
 		switch (index) {
 			case 0:
 				const damage = await this.player.fight(this);
 				await this.monster.onDamage(damage, this);
+
+				const newButtons = selectButton(response.id, [actionRow]);
+				await message.edit({ embed, components: newButtons });
+				response.reply.defer(true);
 
 				await this.channel.send(
 					this.dialogGenerator.embedDialog(
@@ -124,17 +123,17 @@ class Battle {
 				next = true;
 				break;
 			case 1:
-				next = await this.player.act(this);
+				next = await this.player.act(this, message);
 				break;
 			case 2:
 				next = await this.player.item(this);
 				break;
 			case 3:
-				next = await this.player.mercy(this);
+				next = await this.player.mercy(this, message);
 		}
 
 		if (this.ended) return;
-		if (!next) return this.showMainMenu();
+		if (!next) return this.showMainMenu(message);
 
 		// Monster dies
 		if (this.monster.hp <= 0) {

@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { MessageAttachment } from 'discord.js';
+import { MessageEmbed } from 'discord.js';
 import { Awaitable } from '../../util/constants';
 import Battle from './battle';
 
@@ -6,7 +8,7 @@ export interface MonsterOptions {
 	name: string;
 	description: string;
 	fullHP: number;
-	image?: string;
+	image: string;
 }
 
 export interface ActOption {
@@ -18,7 +20,7 @@ abstract class Monster {
 	public readonly name: string;
 	public readonly description: string;
 	public readonly fullHP: number;
-	public readonly image: string | null;
+	public readonly image: string;
 	public hp: number;
 
 	protected _spareable = false;
@@ -28,7 +30,7 @@ abstract class Monster {
 		this.name = options.name;
 		this.description = options.description;
 		this.fullHP = options.fullHP;
-		this.image = options.image ?? null;
+		this.image = options.image;
 
 		this.hp = this.fullHP;
 	}
@@ -48,6 +50,14 @@ abstract class Monster {
 	public onDamage(damage: number, battle: Battle): Awaitable<void> {}
 	public onDeath(battle: Battle): Awaitable<void> {}
 	public onSpare(battle: Battle): Awaitable<void> {}
+
+	public attachImage(embed: MessageEmbed) {
+		const attachment = new MessageAttachment(
+			`./assets/img/monsters/${this.image}`,
+			this.image
+		);
+		embed.attachFiles([attachment]).setThumbnail(`attachment://${this.image}`);
+	}
 
 	public get spareable() {
 		return this._spareable;

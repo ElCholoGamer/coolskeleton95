@@ -1,3 +1,4 @@
+import { MessageActionRow, MessageButton } from 'discord-buttons';
 import { readdir, stat } from 'fs/promises';
 import { resolve } from 'path';
 
@@ -34,3 +35,32 @@ export function sleep(time: number) {
 export const getMaxHP = (lv: number) => 16 + lv * 4;
 
 export const isModule = (file: string) => /\.(js|ts)$/i.test(file);
+
+export function selectButton(id: string, components: MessageActionRow[]) {
+	const newComponents: MessageActionRow[] = [];
+
+	for (const actionRow of components) {
+		const newRow = new MessageActionRow();
+
+		for (const button of actionRow.components as MessageButton[]) {
+			const newButton = new MessageButton()
+				.setDisabled(true)
+				.setID(button.custom_id)
+				.setLabel(button.label);
+
+			if (button.emoji) newButton.setEmoji(button.emoji?.id);
+
+			if (button.custom_id === id) {
+				newButton.setStyle('blurple');
+			} else {
+				newButton.setStyle(button.style);
+			}
+
+			newRow.addComponent(newButton);
+		}
+
+		newComponents.push(newRow);
+	}
+
+	return newComponents;
+}
